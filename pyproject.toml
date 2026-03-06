@@ -1,5 +1,5 @@
 [project]
-name = "jit-ai-challenge"
+name = "dockerfile-generator"
 version = "0.1.0"
 description = "AI-powered Dockerfile generator for arbitrary scripts"
 requires-python = ">=3.12"

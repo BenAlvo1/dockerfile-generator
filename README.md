@@ -116,8 +116,9 @@ Open `http://localhost:3000` to view traces (`admin@local.dev` / `admin1234`).
 ### Unit tests
 
 ```bash
-pip install -e ".[dev]"
-pytest
+uv venv
+uv pip install -e ".[dev]"
+uv run pytest
 ```
 
 ### Integration tests
@@ -132,8 +133,9 @@ pytest
 **Unit tests (no API key or Docker required):**
 
 ```bash
-pip install -e ".[dev]"
-pytest tests/ -v --ignore=tests/integration
+uv venv
+uv pip install -e ".[dev]"
+uv run pytest tests/ -v --ignore=tests/integration
 ```
 
 Covers: config, script parsing, safety regex layer, base image selection (static map + LLM fallback), Docker Hub tag lookup, and the `reflect_and_fix` tool-call flow.
@@ -158,7 +160,7 @@ Calls the real LLM, builds and runs Docker images for each bundled script (inclu
 ## Project structure
 
 ```
-src/
+dockerfile_gen/
   main.py               # Entry point
   config.py             # Pydantic-settings config
   llm/
