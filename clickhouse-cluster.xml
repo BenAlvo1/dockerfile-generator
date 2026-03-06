@@ -1,0 +1,22 @@
+<clickhouse>
+    <zookeeper>
+        <node>
+            <host>localhost</host>
+            <port>9181</port>
+        </node>
+    </zookeeper>
+    <remote_servers>
+        <default>
+            <shard>
+                <replica>
+                    <host>localhost</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </default>
+    </remote_servers>
+    <macros>
+        <shard>1</shard>
+        <replica>langfuse-clickhouse</replica>
+    </macros>
+</clickhouse>

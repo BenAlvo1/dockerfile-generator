@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+# Docker CLI is required so the tool can build/run generated images
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    docker-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+COPY pyproject.toml .
+COPY dockerfile_gen/ dockerfile_gen/
+COPY tests/ tests/
+
+# Install runtime + dev dependencies (pytest, pytest-mock)
+RUN uv pip install --system --no-cache ".[dev]"
+
+# Default: run only the fast safety-blocking tests (no LLM, no Docker builds).
+# Pass --e2e or override CMD to include @pytest.mark.e2e tests.
+CMD ["python", "-m", "pytest", "tests/integration/", "-v", "--tb=short", "-m", "not e2e"]

@@ -1,0 +1,49 @@
+[project]
+name = "jit-ai-challenge"
+version = "0.1.0"
+description = "AI-powered Dockerfile generator for arbitrary scripts"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-openai>=0.2",
+    "langchain-anthropic>=0.3",
+    "langchain-core>=0.3",
+    "pydantic-settings>=2.6",
+    "pydantic>=2.0",
+    "langfuse>=3.0",
+    "langchain>=0.3",
+    "langchain-groq>=1.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.14",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+dockerfile-gen = "dockerfile_gen.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dockerfile_gen"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
