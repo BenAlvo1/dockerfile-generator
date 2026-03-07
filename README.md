@@ -113,16 +113,6 @@ Open `http://localhost:3000` to view traces (`admin@local.dev` / `admin1234`).
 
 ## Running tests
 
-### Unit tests
-
-```bash
-uv venv
-uv pip install -e ".[dev]"
-uv run pytest
-```
-
-### Integration tests
-
 | Tier | Needs LLM? | Needs Docker builds? |
 |---|---|---|
 | Unit tests | No | No |
@@ -140,22 +130,22 @@ uv run pytest tests/ -v --ignore=tests/integration
 
 Covers: config, script parsing, safety regex layer, base image selection (static map + LLM fallback), Docker Hub tag lookup, and the `reflect_and_fix` tool-call flow.
 
-**Safety tests only (no API key required):**
+**Safety + CLI tests (no API key required):**
 
 ```bash
 docker compose --profile test run --rm integration-tests
 ```
 
-Verifies that malicious scripts (fork bombs, reverse shells, crypto miners, disk wipers) and prompt-injection attempts are blocked before the LLM is called.
+Runs `TestCLIArgHandling` and `TestSafetyBlocking` only. Verifies that malicious scripts (fork bombs, reverse shells, crypto miners, disk wipers) and prompt-injection attempts are blocked by the deterministic regex layer before any LLM call is made. Fast and cost-free.
 
-**Full e2e tests:**
+**Full e2e tests (API key required):**
 
 ```bash
 docker compose --profile test run --rm integration-tests \
-  python -m pytest tests/integration/ -v
+  python -m pytest tests/integration/ -v -m e2e
 ```
 
-Calls the real LLM, builds and runs Docker images for each bundled script (including the `matrix_stats` script that requires numpy), exercises the reflect-and-fix retry loop, and verifies that the LLM semantic safety check catches obfuscated threats that bypass the regex filter (e.g. credential harvesters).
+Runs `TestFullPipeline` and `TestLLMSafetyCheck`. Calls the real LLM, builds and runs Docker images for each bundled script (including `matrix_stats` which requires numpy), exercises the reflect-and-fix retry loop, and verifies that the LLM semantic safety check catches obfuscated threats that bypass the regex filter (e.g. credential harvesters). Requires `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY` to be set in `.env`.
 
 ## Project structure
 
