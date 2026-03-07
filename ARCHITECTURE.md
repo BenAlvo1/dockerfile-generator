@@ -9,7 +9,6 @@
 5. [Security Model](#5-security-model)
 6. [Testing Strategy](#6-testing-strategy)
 7. [Known Limitations](#7-known-limitations)
-8. [Directory Structure](#8-directory-structure)
 
 ---
 
@@ -332,62 +331,3 @@ Script content
 - **CLI surface:** All config is env-var only; no CLI flags.
 
 ---
-
-## 8. Directory Structure
-
-```
-dockerfile-generator/
-├── Dockerfile                        # Generator image definition
-├── docker-compose.yml                # Compose: generator + Langfuse stack
-├── pyproject.toml                    # Project metadata, deps, entry points
-├── .env.example                      # Configuration template
-│
-├── dockerfile_gen/
-│   ├── main.py                       # CLI entry point
-│   ├── config.py                     # Pydantic-settings Config + get_config()
-│   │
-│   ├── llm/
-│   │   ├── base.py                   # LLMProvider ABC
-│   │   ├── factory.py                # create_model(config) dispatcher
-│   │   ├── openai_provider.py
-│   │   ├── anthropic_provider.py
-│   │   └── groq_provider.py
-│   │
-│   └── agent/
-│       ├── state.py                  # AgentState TypedDict
-│       ├── graph.py                  # StateGraph + conditional edges
-│       │
-│       ├── nodes/
-│       │   ├── parse_script.py
-│       │   ├── check_safety.py
-│       │   ├── fetch_base_image.py
-│       │   ├── generate_dockerfile.py
-│       │   ├── execute_dockerfile.py
-│       │   ├── validate_output.py
-│       │   └── reflect_and_fix.py
-│       │
-│       └── tools/
-│           └── docker_hub.py         # find_compatible_image LangChain @tool
-│
-└── tests/
-    ├── test_parse_script.py
-    ├── test_check_safety.py
-    ├── test_validate_output.py
-    ├── test_fetch_base_image.py
-    ├── test_docker_hub.py
-    ├── test_reflect_and_fix.py
-    ├── test_config.py
-    │
-    └── integration/
-        ├── Dockerfile.integration
-        ├── conftest.py
-        ├── test_integration.py
-        └── test_scripts/
-            ├── word_reverser/
-            ├── vowel_counter/
-            ├── line_counter/
-            ├── matrix_stats/
-            ├── malicious/
-            ├── prompt_injection/
-            └── llm_safety_bypass/
-```
