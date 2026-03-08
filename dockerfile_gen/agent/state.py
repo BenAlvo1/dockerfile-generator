@@ -7,6 +7,8 @@ class AgentState(TypedDict):
     script_filename: str
     language: str
     base_image: str
+    system_packages: list[str]
+    runtime_packages: list[str]
     image_tag: str
     dockerfile: str
     test_args: str          # args appended to `docker run --rm <image_tag>` for testing

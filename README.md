@@ -1,25 +1,25 @@
 # Dockerfile Generator
 
-An AI-powered tool that takes any script and automatically generates, builds, tests, and self-corrects a Dockerfile for it. Supports Python, JavaScript/TypeScript, Bash, Ruby, Go, Rust, and Java — and falls back to LLM-inferred base images for unknown languages.
+An AI-powered tool that takes any script and automatically generates, builds, tests, and self-corrects a Dockerfile for it. Supports any language or script type — the LLM identifies all required technologies upfront.
 
 ## How it works
 
 ```
-parse_script → check_safety → fetch_base_image → generate_dockerfile
-                                                         ↓
-                                                 execute_dockerfile
-                                                         ↓
-                                                  validate_output
-                                                   ↙          ↘
-                                                done     reflect_and_fix
-                                                              ↓
-                                                      execute_dockerfile (retry)
+parse_script → check_safety → identify_technologies → generate_dockerfile
+                                                               ↓
+                                                       execute_dockerfile
+                                                               ↓
+                                                        validate_output
+                                                         ↙          ↘
+                                                      done     reflect_and_fix
+                                                                    ↓
+                                                          execute_dockerfile (retry)
 ```
 
 1. **parse_script** — detects language from file extension and generates an image tag
 2. **check_safety** — two-layer check: fast regex pre-filter, then LLM semantic analysis to block malicious scripts and prompt injection
-3. **fetch_base_image** — static map for known languages (zero LLM cost); LLM-inferred from script content for unknown extensions
-4. **generate_dockerfile** — LLM generates a working Dockerfile with test args
+3. **identify_technologies** — LLM analyzes the script and extracts the base image, required system packages (e.g. `curl`, `bash`), and runtime packages (e.g. `requests`, `numpy`)
+4. **generate_dockerfile** — LLM generates a working Dockerfile using the identified tech stack, with explicit install instructions and test args
 5. **execute_dockerfile** — runs `docker build` then `docker run`
 6. **validate_output** — checks exit code and output for errors
 7. **reflect_and_fix** — on failure, analyzes the error and retries (up to `MAX_ATTEMPTS`); can call the Docker Hub API to find a valid replacement base image when the current one fails
@@ -128,7 +128,7 @@ uv pip install -e ".[dev]"
 uv run pytest tests/ -v --ignore=tests/integration
 ```
 
-Covers: config, script parsing, safety regex layer, base image selection (static map + LLM fallback), Docker Hub tag lookup, and the `reflect_and_fix` tool-call flow.
+Covers: config, script parsing, safety regex layer, technology identification, Docker Hub tag lookup, and the `reflect_and_fix` tool-call flow.
 
 **Safety + CLI tests (no API key required):**
 
@@ -174,7 +174,7 @@ dockerfile-generator/
 │       ├── nodes/
 │       │   ├── parse_script.py
 │       │   ├── check_safety.py
-│       │   ├── fetch_base_image.py
+│       │   ├── identify_technologies.py
 │       │   ├── generate_dockerfile.py
 │       │   ├── execute_dockerfile.py
 │       │   ├── validate_output.py
@@ -187,7 +187,7 @@ dockerfile-generator/
     ├── test_parse_script.py
     ├── test_check_safety.py
     ├── test_validate_output.py
-    ├── test_fetch_base_image.py
+    ├── test_identify_technologies.py
     ├── test_docker_hub.py
     ├── test_reflect_and_fix.py
     ├── test_config.py

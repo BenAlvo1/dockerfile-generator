@@ -17,8 +17,8 @@
 An AI-powered CLI tool that takes an arbitrary one-pager script (Python, JavaScript, Bash, Ruby, Go, Rust, Java, or unknown) and automatically:
 
 1. **Validates** the script for malicious code and prompt injection.
-2. **Selects** an appropriate Docker base image.
-3. **Generates** a working Dockerfile via LLM.
+2. **Identifies** all required technologies: base image, system packages, and runtime packages.
+3. **Generates** a working Dockerfile via LLM, with full dependency context.
 4. **Builds and runs** the image against a representative test invocation.
 5. **Self-corrects** on failure — up to `MAX_ATTEMPTS` times — by feeding build/run errors back to the LLM.
 
@@ -46,8 +46,8 @@ LLM-vendor-agnostic (OpenAI, Anthropic, Groq). Observable via Langfuse.
 │  │       ▼                                                  │   │
 │  │   LangGraph Agent                                        │   │
 │  │   ┌─────────────────────────────────────────────────┐   │   │
-│  │   │  parse_script → check_safety → fetch_base_image │   │   │
-│  │   │       → generate_dockerfile → execute_dockerfile │   │   │
+│  │   │  parse_script → check_safety → identify_technologies │   │   │
+│  │   │       → generate_dockerfile → execute_dockerfile      │   │   │
 │  │   │       → validate_output ──────────────┐         │   │   │
 │  │   │                    └──► reflect_and_fix ──────► │   │   │
 │  │   │                         (+ Docker Hub API tool) │   │   │
@@ -126,9 +126,9 @@ All providers return a `BaseChatModel`, keeping nodes vendor-agnostic. Structure
             └────────┬──────────────────┘
                safe  │        unsafe
                      │            └──► END (exit 2)
-            ┌────────▼────────┐
-            │ fetch_base_image│
-            └────────┬────────┘
+            ┌────────▼──────────────┐
+            │ identify_technologies │
+            └────────┬──────────────┘
                      │
             ┌────────▼────────┐
             │generate_dockerfile│
@@ -153,21 +153,23 @@ All providers return a `BaseChatModel`, keeping nodes vendor-agnostic. Structure
 
 **Key `AgentState` fields:**
 
-| Field            | Purpose                                                       |
-|------------------|---------------------------------------------------------------|
-| `script_content` | Raw UTF-8 content read by `parse_script`                      |
-| `language`       | Detected language (e.g., `"python"`, `"unknown"`)             |
-| `base_image`     | Docker base image (e.g., `python:3.12-slim`)                  |
-| `dockerfile`     | Generated Dockerfile content                                  |
-| `test_args`      | Arguments appended to `docker run --rm <tag>`                 |
-| `build_output`   | Combined stdout+stderr from `docker build`                    |
-| `run_output`     | Combined stdout+stderr from `docker run`                      |
-| `exit_code`      | Exit code of the last `docker run` (or `-1` on timeout)       |
-| `attempts`       | Number of execute attempts so far                             |
-| `success`        | Set `True` by `validate_output` on a clean run                |
-| `failure_stage`  | `"build"` / `"run"` / `"validation"`                         |
-| `is_safe`        | `False` if blocked by safety node                             |
-| `history`        | Per-attempt error snapshots fed to `reflect_and_fix`          |
+| Field               | Purpose                                                            |
+|---------------------|--------------------------------------------------------------------|
+| `script_content`    | Raw UTF-8 content read by `parse_script`                          |
+| `language`          | Detected language (e.g., `"python"`, `"unknown"`)                 |
+| `base_image`        | Docker base image (e.g., `python:3.12-slim`)                      |
+| `system_packages`   | OS-level packages to install (e.g., `["curl", "bash"]`)           |
+| `runtime_packages`  | Language-level packages to install (e.g., `["requests", "numpy"]`)|
+| `dockerfile`        | Generated Dockerfile content                                       |
+| `test_args`         | Arguments appended to `docker run --rm <tag>`                     |
+| `build_output`      | Combined stdout+stderr from `docker build`                         |
+| `run_output`        | Combined stdout+stderr from `docker run`                           |
+| `exit_code`         | Exit code of the last `docker run` (or `-1` on timeout)           |
+| `attempts`          | Number of execute attempts so far                                  |
+| `success`           | Set `True` by `validate_output` on a clean run                    |
+| `failure_stage`     | `"build"` / `"run"` / `"validation"`                             |
+| `is_safe`           | `False` if blocked by safety node                                  |
+| `history`           | Per-attempt error snapshots fed to `reflect_and_fix`               |
 
 ### Agent Nodes
 
@@ -175,8 +177,8 @@ All providers return a `BaseChatModel`, keeping nodes vendor-agnostic. Structure
 |------|----------|-------|
 | `parse_script` | Zero | Extension-based language detection; generates `image_tag` slug |
 | `check_safety` | ~1 call (layer 2 only) | Regex pre-filter first; LLM semantic check if regex passes |
-| `fetch_base_image` | Zero for known languages | Static `BASE_IMAGE_MAP`; LLM fallback for unknown extensions |
-| `generate_dockerfile` | 1 call | Structured output: `DockerfileSpec(dockerfile, test_args, reasoning)` |
+| `identify_technologies` | 1 call | LLM extracts `base_image`, `system_packages`, and `runtime_packages` from script content |
+| `generate_dockerfile` | 1 call | LLM generates Dockerfile using the full tech stack; structured output: `DockerfileSpec(dockerfile, test_args, reasoning)` |
 | `execute_dockerfile` | Zero | `docker build` + `docker run` in a `TemporaryDirectory` |
 | `validate_output` | Zero | Non-zero exit code or error prefix in first line of output → failure |
 | `reflect_and_fix` | 1 call | Sends full attempt history; binds `find_compatible_image` tool if image pull failure detected |
@@ -202,12 +204,12 @@ User provides: script_path
          LLM semantic check → (if blocked) → END (exit 2)
                   │ safe
                   ▼
-         [fetch_base_image]
-         Static map (known) or LLM inference (unknown) → base_image
+         [identify_technologies]
+         LLM extracts base_image, system_packages, runtime_packages
                   │
                   ▼
          [generate_dockerfile]
-         LLM: produces dockerfile + test_args
+         LLM: produces dockerfile + test_args using identified tech stack
                   │
       ┌───────────▼────────────┐
       │    [execute_dockerfile] │ ◄────────────────────────────────┐
@@ -259,7 +261,7 @@ Script content
 └─────────────────────────────────────────────┘
      │ safe
      ▼
-  Proceed to base image fetch
+  Proceed to technology identification
 ```
 
 ### Container Isolation
@@ -301,8 +303,8 @@ Script content
 │   ┌────────────────────────────────────────────────────────────┐  │
 │   │         Unit Tests (no LLM, no Docker)                     │  │
 │   │  test_parse_script, test_check_safety, test_validate_output│  │
-│   │  test_fetch_base_image, test_docker_hub, test_reflect_and  │  │
-│   │  _fix, test_config                                         │  │
+│   │  test_identify_technologies, test_docker_hub,              │  │
+│   │  test_reflect_and_fix, test_config                         │  │
 │   └────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────┘
 ```

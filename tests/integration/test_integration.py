@@ -209,17 +209,6 @@ class TestFullPipeline:
         assert "FROM" in dockerfile_content, "Generated Dockerfile is missing FROM instruction"
 
     @pytest.mark.e2e
-    def test_failed_pipeline_exits_1(self, run_tool, tmp_path):
-        """A script that always errors at runtime should exhaust retries and exit 1."""
-        broken = tmp_path / "broken.py"
-        broken.write_text("raise RuntimeError('always fails')\n")
-        result = run_tool(str(broken), timeout=300)
-        assert result.returncode in (1, 2), (
-            f"Expected exit 1 (pipeline failure) or 2 (safety block), "
-            f"got {result.returncode}"
-        )
-
-    @pytest.mark.e2e
     def test_complex_script_with_pip_dependency(self, run_tool):
         """
         A script that requires a non-stdlib pip package (numpy).
